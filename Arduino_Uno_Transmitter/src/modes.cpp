@@ -109,12 +109,22 @@ void pass_on_message(RF24* radio, receiver* teensy, message message_from_pc)
   }
 }
 
+// void send_receiver_info_to_serial(receiver* teensy)
+// {
+//   // Battery Levels
+//   printf("%.2f %.2f %.2f %.2f %.2f %.2f ", (double) teensy[0].voltage, (double) teensy[1].voltage, (double) teensy[2].voltage, (double) teensy[3].voltage, (double) teensy[4].voltage, (double) teensy[5].voltage);
+//   // Signal Strength
+//   printf("%.2f %.2f %.2f %.2f %.2f %.2f\n", (double) teensy[0].signalStrength, (double) teensy[1].signalStrength, (double) teensy[2].signalStrength, (double) teensy[3].signalStrength, (double) teensy[4].signalStrength, (double) teensy[5].signalStrength);
+// }
 void send_receiver_info_to_serial(receiver* teensy)
 {
-  // Battery Levels
-  printf("%.2f %.2f %.2f %.2f %.2f %.2f ", (double) teensy[0].voltage, (double) teensy[1].voltage, (double) teensy[2].voltage, (double) teensy[3].voltage, (double) teensy[4].voltage, (double) teensy[5].voltage);
-  // Signal Strength
-  printf("%.2f %.2f %.2f %.2f %.2f %.2f\n", (double) teensy[0].signalStrength, (double) teensy[1].signalStrength, (double) teensy[2].signalStrength, (double) teensy[3].signalStrength, (double) teensy[4].signalStrength, (double) teensy[5].signalStrength);
+  float data[12] = {
+    teensy[0].voltage, teensy[1].voltage, teensy[2].voltage,
+    teensy[3].voltage, teensy[4].voltage, teensy[5].voltage,
+    teensy[0].signalStrength, teensy[1].signalStrength, teensy[2].signalStrength,
+    teensy[3].signalStrength, teensy[4].signalStrength, teensy[5].signalStrength
+  };
+  Serial.write((uint8_t*)data, sizeof(data));  // sends 12 * 4 = 48 bytes
 }
 
 
@@ -236,21 +246,24 @@ void signal_strength(RF24 *radio, receiver *teensy, int8_t total)
     }
 }
 
-void get_serial_message(message *message_input){
-  if (Serial.available() >= 7) // 7 makes sense?
-  {
-    message_input->mode = Serial.read();
-    message_input->receiver_id = Serial.read();
-    message_input->picture = Serial.read();
-    message_input->hue = Serial.read();
-    message_input->saturation = Serial.read();
-    message_input->value_brightness = Serial.read();
-    message_input->velocity = Serial.read();
-    // printf("ECHO: ");
-    // printf("mode %d\n", message_input->mode);
-    // printf("receiver_id %d\n", message_input->receiver_id);
-    // printf("picture_hue %d\n", message_input->picture_hue);
-    // printf("saturation %d\n", message_input->saturation);
-    // printf("value_brightness %d\n", message_input->value_brightness);
-  } 
+void get_serial_message(message *message_input) {
+  const byte START_BYTE = 0xAA;
+
+  // Look for the start byte first
+  if (Serial.available() >= 8) {
+    if (Serial.peek() == START_BYTE) {
+      Serial.read(); // consume the start byte
+      message_input->mode = Serial.read();
+      message_input->receiver_id = Serial.read();
+      message_input->picture = Serial.read();
+      message_input->hue = Serial.read();
+      message_input->saturation = Serial.read();
+      message_input->value_brightness = Serial.read();
+      message_input->velocity = Serial.read();
+    } else {
+      // Skip unexpected byte
+      Serial.read();
+    }
+  }
 }
+
